@@ -67,13 +67,17 @@ jobs:
         key: ${{ secrets.AWS_SSH_KEY }}
         script: |
           cd /home/${{ secrets.AWS_EC2_USER }}/app
-          # Trouver le processus Java actuel qui tourne et l'arrêter proprement
+          
+          # Arrêt de l'ancienne version de manière plus robuste
           pid=$(pgrep -f "world_cup")
           if [ -n "$pid" ]; then
             echo "Arrêt de l'ancienne version (PID: $pid)..."
-            kill -15 $pid
-            sleep 5
+            kill -15 $pid || kill -9 $pid
+            sleep 3
           fi
-          # Lancer la nouvelle version en tâche de fond (nohup)
+          
+          # Lancement avec nohup + disown pour libérer la session SSH immédiatement
           echo "Démarrage de la nouvelle version..."
           nohup java -jar target-delivery/*.war > app.log 2>&1 &
+          sleep 2
+          disown
