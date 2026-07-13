@@ -9,6 +9,7 @@ import com.ipi.world_cup_b3.dto.response.ConnexionResponse;
 import com.ipi.world_cup_b3.dto.response.UtilisateurResponse;
 import com.ipi.world_cup_b3.exception.AccesRefuseException;
 import com.ipi.world_cup_b3.exception.ConflitException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
