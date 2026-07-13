@@ -6,6 +6,7 @@ import com.ipi.world_cup_b3.Repository.PronosticRepository;
 import com.ipi.world_cup_b3.dto.request.PronosticRequest;
 import com.ipi.world_cup_b3.dto.response.PronosticResponse;
 import com.ipi.world_cup_b3.exception.ConflitException;
+import com.ipi.world_cup_b3.exception.RessourceNonTrouveeException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;

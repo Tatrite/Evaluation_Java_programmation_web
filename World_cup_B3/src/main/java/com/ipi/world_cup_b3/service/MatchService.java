@@ -8,6 +8,7 @@ import com.ipi.world_cup_b3.dto.response.MatchResponse;
 import com.ipi.world_cup_b3.Repository.UtilisateurRepository;
 import com.ipi.world_cup_b3.exception.AccesRefuseException;
 import com.ipi.world_cup_b3.exception.ConflitException;
+import com.ipi.world_cup_b3.exception.RessourceNonTrouveeException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
