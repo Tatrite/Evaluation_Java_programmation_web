@@ -66,6 +66,19 @@ jobs:
         username: ${{ secrets.AWS_EC2_USER }}
         key: ${{ secrets.AWS_SSH_KEY }}
         script: |
+          # 1. Installation automatique adaptée pour Amazon Linux (Zéro interaction requise)
+          sudo dnf update -y
+          sudo dnf install -y java-17-amazon-corretto-headless mariadb105-server
+          
+          # 2. Lancement de MariaDB
+          sudo systemctl start mariadb
+          sudo systemctl enable mariadb
+          
+          # 3. Création automatique de la base et de l'utilisateur (si n'existent pas)
+          sudo mysql -e "CREATE DATABASE IF NOT EXISTS world_cup_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          sudo mysql -e "CREATE USER IF NOT EXISTS 'world_cup_user'@'localhost' IDENTIFIED BY 'VotreMotDePasseSecurise';"
+          sudo mysql -e "GRANT ALL PRIVILEGES ON world_cup_db.* TO 'world_cup_user'@'localhost';"
+          sudo mysql -e "FLUSH PRIVILEGES;"
           cd /home/${{ secrets.AWS_EC2_USER }}/app
           
           # On cherche uniquement les processus exécutant du 'java' et on filtre pour exclure le grep lui-même
