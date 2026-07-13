@@ -73,12 +73,22 @@ jobs:
           # 2. Lancement de MariaDB et configuration de la base
           sudo systemctl start mariadb
           sudo systemctl enable mariadb
+          
+          # 3. Réinitialisation propre de la base et de l'utilisateur avec les bons privilèges
           sudo mysql -e "CREATE DATABASE IF NOT EXISTS world_cup_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-          sudo mysql -e "CREATE USER IF NOT EXISTS 'world_cup_user'@'localhost' IDENTIFIED BY 'root';"
+          
+          # On supprime l'utilisateur s'il existe pour éviter les conflits de mot de passe
+          sudo mysql -e "DROP USER IF EXISTS 'world_cup_user'@'localhost';"
+          
+          # On le recrée proprement avec le mot de passe exact de votre application.properties
+          sudo mysql -e "CREATE USER 'world_cup_user'@'localhost' IDENTIFIED BY 'MonSuperMotDePasse123';"
+          sudo mysql -e "ALTER USER 'world_cup_user'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('MonSuperMotDePasse123');"
+          
+          # Attribution des privilèges complets
           sudo mysql -e "GRANT ALL PRIVILEGES ON world_cup_db.* TO 'world_cup_user'@'localhost';"
           sudo mysql -e "FLUSH PRIVILEGES;"
           
-          # 3. Arrêt de l'ancienne version de l'API (si elle tourne)
+          # 4. Arrêt de l'ancienne version de l'API (si elle tourne)
           cd /home/${{ secrets.AWS_EC2_USER }}/app
           pid=$(ps aux | grep java | grep -v grep | awk '{print $2}')
           if [ -n "$pid" ]; then
@@ -88,7 +98,7 @@ jobs:
             kill -9 $pid 2>/dev/null || true
           fi
           
-          # 4. RESOLUTION DU BUG : Trouver le nom exact du fichier présent dans le dossier actuel
+          # 5. RESOLUTION DU BUG : Trouver le nom exact du fichier présent dans le dossier actuel
           # (L'action scp dépose le fichier directement ici, le préfixe "target-delivery/" n'existe plus sur le serveur)
           FICHIER_WAR=$(ls *.war 2>/dev/null | head -n 1)
           
@@ -97,7 +107,7 @@ jobs:
             exit 1
           fi
           
-          # 5. Démarrage de l'application avec son nom exact
+          # 6. Démarrage de l'application avec son nom exact
           echo "Démarrage de la nouvelle version : $FICHIER_WAR"
           nohup java -jar "$FICHIER_WAR" > app.log 2>&1 &
           sleep 2
