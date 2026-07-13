@@ -1,0 +1,79 @@
+name: Java CI/CD avec Maven et AWS
+
+on:
+  push:
+    branches: [ "main" ] 
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ----------------------------------------------------
+  # 1. JOB DE COMPILATION ET TESTS
+  # ----------------------------------------------------
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Récupérer le code source
+      uses: actions/checkout@v4
+
+    - name: Configurer Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Compiler et packager avec Maven
+      working-directory: World_cup_B3
+      run: mvn clean package -DskipTests 
+
+    - name: Sauvegarder l'artefact (le fichier war/jar)
+      uses: actions/upload-artifact@v4
+      with:
+        name: application-artifact
+        path: World_cup_B3/target/*.war 
+
+  # ----------------------------------------------------
+  # 2. JOB DE DÉPLOIEMENT SUR AWS EC2 (CD)
+  # ----------------------------------------------------
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' 
+
+    steps:
+    - name: Télécharger l'artefact généré au job précédent
+      uses: actions/download-artifact@v4
+      with:
+        name: application-artifact
+        path: target-delivery 
+
+    - name: Déployer le fichier sur AWS EC2 via SSH
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.AWS_EC2_HOST }}
+        username: ${{ secrets.AWS_EC2_USER }}
+        key: ${{ secrets.AWS_SSH_KEY }}
+        source: "target-delivery/*.war"
+        target: "/home/${{ secrets.AWS_EC2_USER }}/app"
+        strip_components: 1
+
+    - name: Redémarrer l'application sur le serveur
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.AWS_EC2_HOST }}
+        username: ${{ secrets.AWS_EC2_USER }}
+        key: ${{ secrets.AWS_SSH_KEY }}
+        script: |
+          cd /home/${{ secrets.AWS_EC2_USER }}/app
+          # Trouver le processus Java actuel qui tourne et l'arrêter proprement
+          pid=$(pgrep -f "world_cup")
+          if [ -n "$pid" ]; then
+            echo "Arrêt de l'ancienne version (PID: $pid)..."
+            kill -15 $pid
+            sleep 5
+          fi
+          # Lancer la nouvelle version en tâche de fond (nohup)
+          echo "Démarrage de la nouvelle version..."
+          nohup java -jar target-delivery/*.war > app.log 2>&1 &
