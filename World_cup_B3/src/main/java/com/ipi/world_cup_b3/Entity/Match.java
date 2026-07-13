@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter @Setter @NoArgsConstructor
+@Table(name = "rencontres")
 public class Match {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
