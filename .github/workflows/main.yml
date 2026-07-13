@@ -68,16 +68,20 @@ jobs:
         script: |
           cd /home/${{ secrets.AWS_EC2_USER }}/app
           
-          # Arrêt de l'ancienne version de manière plus robuste
-          pid=$(pgrep -f "world_cup")
+          # On cherche uniquement les processus exécutant du 'java' et on filtre pour exclure le grep lui-même
+          pid=$(ps aux | grep java | grep -v grep | awk '{print $2}')
+          
           if [ -n "$pid" ]; then
-            echo "Arrêt de l'ancienne version (PID: $pid)..."
-            kill -15 $pid || kill -9 $pid
+            echo "Arrêt de l'ancienne version Java (PID: $pid)..."
+            kill -15 $pid
             sleep 3
+            # Force si toujours vivant
+            kill -9 $pid 2>/dev/null || true
+          else
+            echo "Aucune ancienne version en cours d'exécution."
           fi
           
-          # Lancement avec nohup + disown pour libérer la session SSH immédiatement
+          # Lancement en tâche de fond stable
           echo "Démarrage de la nouvelle version..."
           nohup java -jar target-delivery/*.war > app.log 2>&1 &
           sleep 2
-          disown
