@@ -66,7 +66,7 @@ jobs:
         username: ${{ secrets.AWS_EC2_USER }}
         key: ${{ secrets.AWS_SSH_KEY }}
         script: |
-          # 1. Installation automatique adaptée pour Amazon Linux (Zéro interaction requise)
+          # 1. Installation automatique adaptée pour Amazon Linux
           sudo dnf update -y
           sudo dnf install -y java-17-amazon-corretto-headless mariadb105-server
           
@@ -79,22 +79,40 @@ jobs:
           sudo mysql -e "CREATE USER IF NOT EXISTS 'world_cup_user'@'localhost' IDENTIFIED BY 'VotreMotDePasseSecurise';"
           sudo mysql -e "GRANT ALL PRIVILEGES ON world_cup_db.* TO 'world_cup_user'@'localhost';"
           sudo mysql -e "FLUSH PRIVILEGES;"
+          
+          # 4. Installation et lancement de NGROK pour ouvrir le port sans toucher à AWS
+          if ! command -v ngrok &> /dev/null; then
+            echo "Installation de Ngrok..."
+            sudo dnf config-manager --add-repo https://ngrok-agent.s3.amazonaws.com/ngrok.repo && sudo dnf install ngrok -y
+            # Configuration de votre jeton (Remplacez par votre jeton ngrok ou créez un secret GitHub)
+            ngrok config add-authtoken "VOTRE_AUTHTOKEN_NGROK_ICI"
+          fi
+          
+          # Lancement du tunnel Ngrok en tâche de fond s'il ne tourne pas déjà
+          if ! pgrep -x "ngrok" > /dev/null; then
+            nohup ngrok http 8080 > /home/${{ secrets.AWS_EC2_USER }}/app/ngrok.log 2>&1 &
+            sleep 2
+          fi
+          
+          # 5. Déploiement et redémarrage de l'API
           cd /home/${{ secrets.AWS_EC2_USER }}/app
           
-          # On cherche uniquement les processus exécutant du 'java' et on filtre pour exclure le grep lui-même
+          # On cherche l'ancienne version Java pour l'arrêter
           pid=$(ps aux | grep java | grep -v grep | awk '{print $2}')
-          
           if [ -n "$pid" ]; then
             echo "Arrêt de l'ancienne version Java (PID: $pid)..."
             kill -15 $pid
             sleep 3
-            # Force si toujours vivant
             kill -9 $pid 2>/dev/null || true
-          else
-            echo "Aucune ancienne version en cours d'exécution."
           fi
           
-          # Lancement en tâche de fond stable
-          echo "Démarrage de la nouvelle version..."
-          nohup java -jar target-delivery/*.war > app.log 2>&1 &
+          # CORRECTIF : Trouver le nom exact du fichier .war pour éviter l'erreur d'accès de Java
+          FICHIER_WAR=$(ls target-delivery/*.war | head -n 1)
+          if [ -z "$FICHIER_WAR" ]; then
+            echo "ERREUR : Aucun fichier .war trouvé !"
+            exit 1
+          fi
+          
+          echo "Démarrage de la nouvelle version : $FICHIER_WAR"
+          nohup java -jar "$FICHIER_WAR" > app.log 2>&1 &
           sleep 2
